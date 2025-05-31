@@ -1,0 +1,45 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Generate All Models",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Generate Vision Model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/models/vision_model.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Generate Audio Model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/models/audio_model.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Generate Motion Model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/models/motion_model.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Generate Fusion Model",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/models/fusion_model.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
