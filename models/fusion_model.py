@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Fusion Model Generator for Multi-Modal AI Fusion Accelerator
-Generates fusion_model.tflite for multi-modal threat detection
+Generates fusion_model.tflite (TensorFlow Lite model) for multi-modal threat detection
 """
 
 import tensorflow as tf
@@ -21,8 +21,8 @@ def create_fusion_model():
     audio_weighted = tf.keras.layers.Dense(4, activation='tanh')(audio_input)
     motion_weighted = tf.keras.layers.Dense(4, activation='tanh')(motion_input)
     
-    # Concatenate all features
-    fused = tf.keras.layers.Concatenate()([vision_weighted, audio_weighted, motion_weighted])
+    # Replace concatenation with element-wise addition
+    fused = tf.keras.layers.Add()([vision_weighted, audio_weighted, motion_weighted])
     
     # Fusion processing
     x = tf.keras.layers.Dense(16, activation='relu')(fused)
@@ -36,11 +36,11 @@ def create_fusion_model():
         outputs=output
     )
     
-    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])  # Binary cross-entropy loss for classification
     return model
 
 def generate_and_convert_fusion():
-    print("Creating Multi-Modal Fusion Model for Vivado Simulation...")
+    print("Creating Multi-Modal Fusion Model for FPGA Simulation...")
     
     # Create model
     model = create_fusion_model()
@@ -77,22 +77,22 @@ def generate_and_convert_fusion():
             ]
     
     converter.representative_dataset = representative_dataset
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]  # INT8 quantization for TensorFlow Lite
     converter.inference_input_type = tf.int8
     converter.inference_output_type = tf.int8
     
-    tflite_model = converter.convert()
+    tflite_model = converter.convert()  # Convert the model to TensorFlow Lite format
     
     # Save TFLite model
     output_dir = 'output'
     os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, 'fusion_model.tflite')
+    filepath = os.path.join(output_dir, 'fusion_model.tflite')  # Save the TensorFlow Lite model
     
     with open(filepath, 'wb') as f:
-        f.write(tflite_model)
+        f.write(tflite_model)  # Write the TensorFlow Lite model to a file
     
-    print(f"✅ Fusion model saved: {filepath} ({len(tflite_model)} bytes)")
-    return tflite_model
+    print(f"✅ Fusion model saved: {filepath} ({len(tflite_model)} bytes)")  # Confirm model save
+    return tflite_model  # Return the TensorFlow Lite model
 
 if __name__ == "__main__":
     generate_and_convert_fusion()

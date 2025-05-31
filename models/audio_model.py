@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Audio Model Generator for Multi-Modal AI Fusion Accelerator
-Generates audio_model.tflite for sound classification using RNN
+Fixed Audio Model - TFLite Compatible
+Replaces LSTM with 1D CNN for better TFLite compatibility
 """
 
 import tensorflow as tf
@@ -9,15 +9,19 @@ import numpy as np
 import os
 
 def create_simple_audio_model():
-    """Lightweight RNN for audio threat detection - optimized for FPGA simulation"""
+    """Lightweight 1D CNN for audio threat detection - TFLite compatible"""
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(32, 13)),  # 32 time steps, 13 MFCC features
         
-        # Simple LSTM layers
-        tf.keras.layers.LSTM(32, return_sequences=True),
-        tf.keras.layers.LSTM(16),
+        # Use 1D convolutions instead of LSTM for TFLite compatibility
+        tf.keras.layers.Conv1D(32, 3, activation='relu', padding='same'),
+        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Conv1D(16, 3, activation='relu', padding='same'),
+        tf.keras.layers.MaxPooling1D(2),
+        tf.keras.layers.Conv1D(8, 3, activation='relu', padding='same'),
+        tf.keras.layers.GlobalMaxPooling1D(),
         
-        # Simple dense layers  
+        # Dense layers for classification
         tf.keras.layers.Dense(16, activation='relu'),
         tf.keras.layers.Dense(3, activation='softmax')  # 3 classes: normal, scream, crash
     ])
@@ -26,7 +30,7 @@ def create_simple_audio_model():
     return model
 
 def generate_and_convert_audio():
-    print("Creating Simple Audio Model for Vivado Simulation...")
+    print("Creating TFLite-Compatible Audio Model...")
     
     # Create model
     model = create_simple_audio_model()
@@ -40,32 +44,50 @@ def generate_and_convert_audio():
     print("Quick training for weight initialization...")
     model.fit(x_dummy, y_dummy, epochs=2, batch_size=10, verbose=1)
     
-    # Convert to TFLite with quantization
+    # Convert to TFLite with quantization - FIXED VERSION
     print("Converting to TFLite with INT8 quantization...")
     converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     
-    # INT8 quantization
+    # INT8 quantization with proper configuration
     def representative_dataset():
         for _ in range(10):
             yield [np.random.random((1, 32, 13)).astype(np.float32)]
     
     converter.representative_dataset = representative_dataset
+    
+    # Use TFLite built-ins only (no SELECT_TF_OPS needed)
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     converter.inference_input_type = tf.int8
     converter.inference_output_type = tf.int8
     
-    tflite_model = converter.convert()
+    # Add this to handle any remaining compatibility issues
+    converter.allow_custom_ops = False
+    converter.experimental_new_converter = True
+    
+    try:
+        tflite_model = converter.convert()
+    except Exception as e:
+        print(f"⚠️  INT8 conversion failed, trying float16 fallback...")
+        print(f"Error: {e}")
+        
+        # Fallback to float16 quantization
+        converter = tf.lite.TFLiteConverter.from_keras_model(model)
+        converter.optimizations = [tf.lite.Optimize.DEFAULT]
+        converter.target_spec.supported_types = [tf.float16]
+        tflite_model = converter.convert()
+        print("✅ Using float16 quantization instead")
+    
+    # Create output directory if it doesn't exist
+    output_dir = 'output'  # Save directly in the current working directory's output folder
+    os.makedirs(output_dir, exist_ok=True)
     
     # Save TFLite model
-    output_dir = 'output'
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, 'audio_model.tflite')
-    
-    with open(filepath, 'wb') as f:
+    output_path = os.path.join(output_dir, 'audio_model.tflite')  # Correct path
+    with open(output_path, 'wb') as f:
         f.write(tflite_model)
     
-    print(f"✅ Audio model saved: {filepath} ({len(tflite_model)} bytes)")
+    print(f"✅ Audio model saved: {output_path} ({len(tflite_model)} bytes)")
     return tflite_model
 
 if __name__ == "__main__":

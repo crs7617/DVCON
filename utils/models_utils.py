@@ -1,53 +1,183 @@
+#!/usr/bin/env python3
 """
-Common utilities for model conversion and validation
+Utility functions for Multi-Modal AI Fusion Accelerator
 """
 
-import tensorflow as tf
-import numpy as np
 import os
+import sys
+from pathlib import Path
 
-def convert_to_tflite_int8(model, model_name, input_shapes, output_dir="output"):
-    """
-    Convert Keras model to INT8 quantized TFLite
-    """
-    print(f"Converting {model_name} to TFLite...")
-    
-    converter = tf.lite.TFLiteConverter.from_keras_model(model)
-    converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    
-    # Representative dataset for quantization
-    def representative_dataset():
-        for _ in range(10):
-            if isinstance(input_shapes[0], tuple):  # Multi-input
-                yield [np.random.random((1,) + shape).astype(np.float32) for shape in input_shapes]
-            else:  # Single input
-                yield [np.random.random((1,) + input_shapes).astype(np.float32)]
-    
-    converter.representative_dataset = representative_dataset
-    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-    converter.inference_input_type = tf.int8
-    converter.inference_output_type = tf.int8
-    
-    tflite_model = converter.convert()
-    
-    # Save to output directory
-    os.makedirs(output_dir, exist_ok=True)
-    filepath = os.path.join(output_dir, f"{model_name}.tflite")
-    with open(filepath, 'wb') as f:
-        f.write(tflite_model)
-    
-    print(f"✅ {filepath} saved ({len(tflite_model)} bytes)")
-    return tflite_model
-
-def validate_tflite_model(tflite_path):
-    """
-    Validate TFLite model can be loaded and interpreted
-    """
+def check_dependencies():
+    """Check if required dependencies are installed"""
     try:
-        interpreter = tf.lite.Interpreter(model_path=tflite_path)
-        interpreter.allocate_tensors()
-        print(f"✅ {tflite_path} validated successfully")
+        import tensorflow as tf
+        import numpy as np
+        print(f"✅ TensorFlow {tf.__version__} found")
+        print(f"✅ NumPy {np.__version__} found")
         return True
-    except Exception as e:
-        print(f"❌ {tflite_path} validation failed: {e}")
+    except ImportError as e:
+        print(f"❌ Missing dependency: {e}")
+        print("Install with: pip install tensorflow numpy")
         return False
+
+def setup_directories():
+    """Create required project directories"""
+    directories = [
+        'output',
+        'models', 
+        'scripts',
+        'utils',
+        'docs',
+        '.vscode'
+    ]
+    
+    for directory in directories:
+        Path(directory).mkdir(exist_ok=True)
+        
+    # Create __init__.py files for Python packages
+    for pkg_dir in ['models', 'utils']:
+        init_file = Path(pkg_dir) / '__init__.py'
+        if not init_file.exists():
+            init_file.touch()
+    
+    print("📁 Project directories created/verified")
+
+def get_model_file_sizes():
+    """Get sizes of generated model files"""
+    output_dir = Path('output')
+    model_files = [
+        'vision_model.tflite',
+        'audio_model.tflite', 
+        'motion_model.tflite',
+        'fusion_model.tflite'
+    ]
+    
+    sizes = {}
+    total_size = 0
+    
+    for model_file in model_files:
+        model_path = output_dir / model_file
+        if model_path.exists():
+            size = model_path.stat().st_size
+            sizes[model_file] = size
+            total_size += size
+        else:
+            sizes[model_file] = 0
+    
+    return sizes, total_size
+
+def print_project_structure():
+    """Print the recommended project structure"""
+    structure = """
+📁 Recommended Project Structure:
+multimodal-ai-fusion/
+├── .vscode/
+│   ├── settings.json
+│   ├── launch.json
+│   └── tasks.json
+├── models/
+│   ├── __init__.py
+│   ├── vision_model.py
+│   ├── audio_model.py
+│   ├── motion_model.py
+│   └── fusion_model.py
+├── output/
+│   ├── vision_model.tflite
+│   ├── audio_model.tflite
+│   ├── motion_model.tflite
+│   └── fusion_model.tflite
+├── scripts/
+│   ├── generate_all_models.py
+│   └── test_models.py
+├── utils/
+│   ├── __init__.py
+│   └── model_utils.py
+├── docs/
+│   └── README.md
+├── requirements.txt
+└── main.py
+"""
+    print(structure)
+
+def create_requirements_txt():
+    """Create requirements.txt file"""
+    requirements = """tensorflow>=2.10.0
+numpy>=1.21.0
+"""
+    
+    with open('requirements.txt', 'w') as f:
+        f.write(requirements)
+    
+    print("✅ requirements.txt created")
+
+def create_vscode_settings():
+    """Create VS Code settings for the project"""
+    vscode_dir = Path('.vscode')
+    vscode_dir.mkdir(exist_ok=True)
+    
+    # settings.json
+    settings = """{
+    "python.defaultInterpreterPath": "/usr/bin/python3",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "python.formatting.provider": "black",
+    "files.associations": {
+        "*.py": "python"
+    },
+    "python.analysis.extraPaths": [
+        "./models",
+        "./utils",
+        "./scripts"
+    ]
+}"""
+    
+    with open(vscode_dir / 'settings.json', 'w') as f:
+        f.write(settings)
+    
+    # launch.json
+    launch = """{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Generate All Models",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--generate-all"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Test All Models",
+            "type": "python", 
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--test-all"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Full Demo",
+            "type": "python",
+            "request": "launch", 
+            "program": "${workspaceFolder}/main.py",
+            "args": ["--demo"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}"""
+    
+    with open(vscode_dir / 'launch.json', 'w') as f:
+        f.write(launch)
+    
+    print("✅ VS Code configuration created")
+
+if __name__ == "__main__":
+    print("Setting up Multi-Modal AI Fusion Accelerator project...")
+    check_dependencies()
+    setup_directories()
+    create_requirements_txt()
+    create_vscode_settings()
+    print_project_structure()
+    print("🎉 Project setup complete!")
